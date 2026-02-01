@@ -1,0 +1,89 @@
+#!/usr/bin/env ruby
+#
+# verify_zai_connection - Verify Z.AI credentials and reachability
+#
+
+require "net/http"
+require "uri"
+require "openssl"
+
+PROJECT_ROOT = File.expand_path("..", __dir__)
+SECRETS_DIR  = File.join(PROJECT_ROOT, "secrets")
+
+def ok(msg)   = puts("  [OK]   #{msg}")
+def fail!(msg) = puts("  [FAIL] #{msg}")
+def info(msg)  = puts("         #{msg}")
+
+# ── Read credentials ──────────────────────────────────────────
+
+begin
+
+account_file  = File.join(SECRETS_DIR, "z.ai", "Z_AI_ACCOUNT.sh")
+password_file = File.join(SECRETS_DIR, "z.ai", "Z_AI_PASSWORD.sh")
+
+account  = nil
+password = nil
+
+if File.exist?(account_file)
+  match = File.read(account_file).match(/export\s+Z_AI_ACCOUNT=(.+)/)
+  account = match[1].strip if match
+end
+
+if File.exist?(password_file)
+  match = File.read(password_file).match(/export\s+Z_AI_PASSWORD=(.+)/)
+  password = match[1].strip if match
+end
+
+unless account
+  fail! "Cannot find Z_AI_ACCOUNT in #{account_file}"
+  exit 1
+end
+ok "Found Z_AI_ACCOUNT: #{account}"
+
+unless password
+  fail! "Cannot find Z_AI_PASSWORD in #{password_file}"
+  exit 1
+end
+ok "Found Z_AI_PASSWORD"
+
+# ── Verify chat.z.ai is reachable ─────────────────────────────
+
+info "Checking chat.z.ai reachability..."
+
+uri = URI("https://chat.z.ai")
+http = Net::HTTP.new(uri.host, uri.port)
+http.use_ssl = true
+http.open_timeout = 10
+http.read_timeout = 15
+store = OpenSSL::X509::Store.new
+store.set_default_paths
+http.cert_store = store
+http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+
+request = Net::HTTP::Get.new(uri)
+response = http.request(request)
+code = response.code.to_i
+
+if code.between?(200, 399)
+  ok "chat.z.ai is reachable (HTTP #{code})"
+else
+  fail! "chat.z.ai returned HTTP #{code}"
+end
+
+# ── Check for screenshot evidence ─────────────────────────────
+
+screenshot = File.join(PROJECT_ROOT, "screenshots", "Z_AI_CHAT.png")
+if File.exist?(screenshot)
+  ok "Login screenshot exists: screenshots/Z_AI_CHAT.png"
+else
+  info "No login screenshot found (optional)"
+end
+
+info ""
+info "Note: Z.AI uses browser-based login. Automated credential"
+info "verification is not possible — confirm manually at chat.z.ai"
+
+rescue SocketError, Errno::ECONNREFUSED, Net::OpenTimeout => e
+  fail! "Network error: #{e.message}"
+  exit 1
+end

@@ -1,0 +1,1 @@
+export HOSTINGER_PASSWORD=your-hostinger-password

@@ -1,0 +1,71 @@
+#!/usr/bin/env ruby
+#
+# verify_anthropic_connection - Verify Anthropic API key and list available models
+#
+
+require "net/http"
+require "uri"
+require "json"
+require "openssl"
+
+PROJECT_ROOT = File.expand_path("..", __dir__)
+SECRETS_DIR  = File.join(PROJECT_ROOT, "secrets")
+
+def ok(msg)   = puts("  [OK]   #{msg}")
+def fail!(msg) = puts("  [FAIL] #{msg}")
+def info(msg)  = puts("         #{msg}")
+
+begin
+
+key_file = File.join(SECRETS_DIR, "anthropic", "ANTHROPIC_API_KEY.sh")
+
+unless File.exist?(key_file)
+  fail! "Cannot find #{key_file}"
+  exit 1
+end
+
+contents = File.read(key_file)
+match = contents.match(/export\s+ANTHROPIC_API_KEY=(.+)/)
+unless match
+  fail! "No 'export ANTHROPIC_API_KEY=...' line found"
+  exit 1
+end
+
+api_key = match[1].strip
+ok "Found ANTHROPIC_API_KEY"
+info "Key starts with: #{api_key[0..15]}..."
+
+# Test key by listing models
+uri = URI("https://api.anthropic.com/v1/models")
+http = Net::HTTP.new(uri.host, uri.port)
+http.use_ssl = true
+http.open_timeout = 10
+http.read_timeout = 15
+store = OpenSSL::X509::Store.new
+store.set_default_paths
+http.cert_store = store
+http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+
+request = Net::HTTP::Get.new(uri)
+request["x-api-key"]         = api_key
+request["anthropic-version"] = "2023-06-01"
+
+response = http.request(request)
+code = response.code.to_i
+data = JSON.parse(response.body) rescue {}
+
+case code
+when 200
+  ok "Anthropic API authenticated successfully"
+  models = data["data"] || []
+  info "Available models:"
+  models.each { |m| info "  - #{m["display_name"]} (#{m["id"]})" }
+else
+  fail! "HTTP #{code}: #{data.dig("error", "message") || response.body[0..200]}"
+  exit 1
+end
+
+rescue SocketError, Errno::ECONNREFUSED, Net::OpenTimeout => e
+  fail! "Network error: #{e.message}"
+  exit 1
+end

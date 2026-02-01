@@ -1,0 +1,113 @@
+#!/usr/bin/env ruby
+#
+# verify_github_connection - Verify GitHub credentials and gh CLI auth
+#
+
+require "net/http"
+require "uri"
+require "json"
+require "open3"
+require "openssl"
+
+PROJECT_ROOT = File.expand_path("..", __dir__)
+SECRETS_DIR  = File.join(PROJECT_ROOT, "secrets")
+
+def ok(msg)   = puts("  [OK]   #{msg}")
+def fail!(msg) = puts("  [FAIL] #{msg}")
+def info(msg)  = puts("         #{msg}")
+
+# ── Read credentials ──────────────────────────────────────────
+
+begin
+
+account_file = File.join(SECRETS_DIR, "github", "GITHUB_ACCOUNT.sh")
+token_file   = File.join(SECRETS_DIR, "github", "GITHUB_ACCESS_TOKEN.sh")
+
+account = nil
+token   = nil
+
+if File.exist?(account_file)
+  match = File.read(account_file).match(/export\s+GITHUB_ACCOUNT=(.+)/)
+  account = match[1].strip if match
+end
+
+if File.exist?(token_file)
+  match = File.read(token_file).match(/export\s+GITHUB_ACCESS_TOKEN=(.+)/)
+  token = match[1].strip if match
+end
+
+unless account
+  fail! "Cannot find GITHUB_ACCOUNT in #{account_file}"
+  exit 1
+end
+ok "Found GITHUB_ACCOUNT: #{account}"
+
+unless token
+  fail! "Cannot find GITHUB_ACCESS_TOKEN in #{token_file}"
+  exit 1
+end
+ok "Found GITHUB_ACCESS_TOKEN"
+info "Token starts with: #{token[0..10]}..."
+
+# ── Verify API token ─────────────────────────────────────────
+
+uri = URI("https://api.github.com/user")
+http = Net::HTTP.new(uri.host, uri.port)
+http.use_ssl = true
+http.open_timeout = 10
+http.read_timeout = 15
+store = OpenSSL::X509::Store.new
+store.set_default_paths
+http.cert_store = store
+http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+
+request = Net::HTTP::Get.new(uri)
+request["Authorization"] = "token #{token}"
+request["Accept"] = "application/vnd.github+json"
+
+response = http.request(request)
+code = response.code.to_i
+data = JSON.parse(response.body) rescue {}
+
+case code
+when 200
+  ok "GitHub API authenticated as: #{data["login"]}"
+  info "Name:     #{data["name"]}"
+  info "Email:    #{data["email"]}"
+  info "Plan:     #{data.dig("plan", "name")}"
+  info "2FA:      #{data["two_factor_authentication"] ? "enabled" : "disabled"}"
+  info "Repos:    #{data["public_repos"]} public, #{data["total_private_repos"]} private"
+
+  if data["login"] != account
+    fail! "Token authenticates as '#{data["login"]}' but GITHUB_ACCOUNT is '#{account}'"
+  end
+when 401
+  fail! "Access token is invalid or expired (HTTP 401)"
+  exit 1
+else
+  fail! "HTTP #{code}: #{data["message"] || response.body[0..200]}"
+  exit 1
+end
+
+# ── Verify gh CLI ─────────────────────────────────────────────
+
+puts
+info "Checking gh CLI..."
+
+output, status = Open3.capture2e("gh auth status")
+if status.success?
+  ok "gh CLI is authenticated"
+  output.each_line do |line|
+    line = line.strip
+    next if line.empty?
+    info "  #{line}"
+  end
+else
+  fail! "gh CLI is not authenticated or not installed"
+  info output.strip
+end
+
+rescue SocketError, Errno::ECONNREFUSED, Net::OpenTimeout => e
+  fail! "Network error: #{e.message}"
+  exit 1
+end

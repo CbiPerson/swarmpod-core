@@ -1,0 +1,90 @@
+#!/usr/bin/env ruby
+#
+# verify_hostinger_connection - Verify Hostinger VPS credentials and connectivity
+#
+
+require "socket"
+
+PROJECT_ROOT = File.expand_path("..", __dir__)
+SECRETS_DIR  = File.join(PROJECT_ROOT, "secrets")
+
+def ok(msg)   = puts("  [OK]   #{msg}")
+def fail!(msg) = puts("  [FAIL] #{msg}")
+def info(msg)  = puts("         #{msg}")
+
+# ── Read credentials ──────────────────────────────────────────
+
+deploy_dir    = File.join(SECRETS_DIR, "deployment", "Hostinger")
+account_file  = File.join(deploy_dir, "HOSTINGER_ACCOUNT.sh")
+password_file = File.join(deploy_dir, "HOSTINGER_PASSWORD.sh")
+server_file   = File.join(deploy_dir, "HOSTINGER_SERVER.sh")
+
+account  = nil
+password = nil
+server   = nil
+
+if File.exist?(account_file)
+  match = File.read(account_file).match(/export\s+HOSTINGER_ACCOUNT=(.+)/)
+  account = match[1].strip if match
+end
+
+if File.exist?(password_file)
+  match = File.read(password_file).match(/export\s+HOSTINGER_PASSWORD=(.+)/)
+  password = match[1].strip if match
+end
+
+if File.exist?(server_file)
+  match = File.read(server_file).match(/export\s+HOSTINGER_SERVER=(.+)/)
+  server = match[1].strip if match
+end
+
+unless account
+  fail! "Cannot find HOSTINGER_ACCOUNT"
+  exit 1
+end
+ok "Found HOSTINGER_ACCOUNT: #{account}"
+
+unless password
+  fail! "Cannot find HOSTINGER_PASSWORD"
+  exit 1
+end
+ok "Found HOSTINGER_PASSWORD"
+
+unless server
+  fail! "Cannot find HOSTINGER_SERVER"
+  exit 1
+end
+ok "Found HOSTINGER_SERVER: #{server}"
+
+# ── DNS resolution ────────────────────────────────────────────
+
+info "Resolving #{server}..."
+
+begin
+  addresses = Addrinfo.getaddrinfo(server, nil)
+  ipv4 = addresses.find { |a| a.ipv4? }&.ip_address
+  ipv6 = addresses.find { |a| a.ipv6? }&.ip_address
+  ok "DNS resolves"
+  info "  IPv4: #{ipv4}" if ipv4
+  info "  IPv6: #{ipv6}" if ipv6
+rescue SocketError => e
+  fail! "DNS resolution failed: #{e.message}"
+  exit 1
+end
+
+# ── Port checks ───────────────────────────────────────────────
+
+{22 => "SSH", 80 => "HTTP", 443 => "HTTPS"}.each do |port, label|
+  begin
+    Socket.tcp(server, port, connect_timeout: 5) { |s| s.close }
+    ok "#{label} (port #{port}): open"
+  rescue Errno::ECONNREFUSED
+    info "#{label} (port #{port}): closed"
+  rescue Errno::ETIMEDOUT, SocketError => e
+    info "#{label} (port #{port}): unreachable (#{e.class.name.split("::").last})"
+  end
+end
+
+info ""
+info "To test SSH login:"
+info "  ssh #{account}@#{server}"

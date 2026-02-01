@@ -1,0 +1,242 @@
+#!/usr/bin/env ruby
+#
+# verify_connections - Bootstrap connectivity verification
+#
+# Default flow:
+#   1. Discover and verify the Anthropic API key from secrets/
+#   2. Verify the Claude CLI is installed and working
+#   3. Hand off to Claude to explore remaining secrets and walk
+#      the user through verifying each one interactively
+#
+
+require "net/http"
+require "uri"
+require "json"
+require "open3"
+require "openssl"
+
+PROJECT_ROOT = File.expand_path("..", __dir__)
+SECRETS_DIR  = File.join(PROJECT_ROOT, "secrets")
+DEPLOY_DIR   = File.join(PROJECT_ROOT, "deployment")
+
+# ── pretty output ──────────────────────────────────────────────
+
+def banner(msg)
+  puts
+  puts "=" * 60
+  puts "  #{msg}"
+  puts "=" * 60
+end
+
+def step(n, msg)
+  puts
+  puts "  Step #{n}: #{msg}"
+  puts "  " + "-" * 50
+end
+
+def ok(msg)
+  puts "  [OK]   #{msg}"
+end
+
+def fail!(msg)
+  puts "  [FAIL] #{msg}"
+end
+
+def info(msg)
+  puts "         #{msg}"
+end
+
+def wait_or_quit(prompt = "Press ENTER to continue (or q to quit)...")
+  print "\n  #{prompt} "
+  answer = $stdin.gets.to_s.strip.downcase
+  if answer == "q"
+    puts "\n  Goodbye!\n\n"
+    exit 0
+  end
+end
+
+# ── 1. discover anthropic key ─────────────────────────────────
+
+def discover_anthropic_key
+  key_file = File.join(SECRETS_DIR, "anthropic", "ANTHROPIC_API_KEY.sh")
+
+  unless File.exist?(key_file)
+    fail! "Cannot find #{key_file}"
+    info  "Create the file with:  export ANTHROPIC_API_KEY=sk-ant-..."
+    return nil
+  end
+
+  contents = File.read(key_file)
+  match = contents.match(/export\s+ANTHROPIC_API_KEY=(.+)/)
+
+  unless match
+    fail! "No 'export ANTHROPIC_API_KEY=...' line found in #{key_file}"
+    return nil
+  end
+
+  key = match[1].strip
+  ok "Found ANTHROPIC_API_KEY in secrets/anthropic/ANTHROPIC_API_KEY.sh"
+  info "Key starts with: #{key[0..15]}..."
+  key
+end
+
+# ── 2. verify anthropic key ───────────────────────────────────
+
+def verify_anthropic_key(api_key)
+  info "Calling Anthropic API to verify the key..."
+
+  uri = URI("https://api.anthropic.com/v1/messages")
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = true
+  http.open_timeout = 10
+  http.read_timeout = 15
+
+  # Work around CRL-checking issues common with rbenv on macOS
+  store = OpenSSL::X509::Store.new
+  store.set_default_paths
+  http.cert_store = store
+  http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+
+  body = {
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 32,
+    messages: [{ role: "user", content: "Reply with only the word: connected" }]
+  }.to_json
+
+  request = Net::HTTP::Post.new(uri)
+  request["x-api-key"]       = api_key
+  request["anthropic-version"] = "2023-06-01"
+  request["content-type"]     = "application/json"
+  request.body = body
+
+  response = http.request(request)
+
+  code = response.code.to_i
+  data = JSON.parse(response.body) rescue {}
+
+  case code
+  when 200
+    reply = data.dig("content", 0, "text").to_s.strip
+    ok "Anthropic API is live  (Claude replied: \"#{reply}\")"
+    true
+  when 401
+    fail! "API key is invalid or expired (HTTP 401)"
+    info  "Generate a new key at https://console.anthropic.com/settings/keys"
+    false
+  when 429
+    fail! "Rate limited (HTTP 429) — key is valid but try again shortly"
+    false
+  when 400
+    err_msg = data.dig("error", "message").to_s
+    if err_msg.include?("credit balance")
+      ok "API key is valid (authenticated successfully)"
+      fail! "Account needs credits — cannot make API calls yet"
+      info  "Add credits at https://console.anthropic.com/settings/billing"
+      info  "The key itself is good. You can continue to check other connections."
+      :needs_credits
+    else
+      fail! "Bad request (HTTP 400): #{err_msg[0..150]}"
+      false
+    end
+  else
+    fail! "Unexpected response: HTTP #{code}"
+    info  response.body[0..200]
+    false
+  end
+
+rescue SocketError, Errno::ECONNREFUSED, Net::OpenTimeout => e
+  fail! "Network error: #{e.message}"
+  info  "Check your internet connection and try again."
+  false
+end
+
+# ── 3. verify claude CLI ──────────────────────────────────────
+
+def verify_claude_cli
+  path, status = Open3.capture2("which claude")
+  path = path.strip
+
+  unless status.success? && !path.empty?
+    fail! "The 'claude' command was not found on your PATH."
+    info  "Install Claude Code:  npm install -g @anthropic-ai/claude-code"
+    info  "Then run this script again."
+    return false
+  end
+
+  ok "Claude CLI found at: #{path}"
+
+  version, status = Open3.capture2("claude --version")
+  if status.success?
+    ok "Version: #{version.strip}"
+  end
+
+  true
+end
+
+# ── 4. hand off to claude ─────────────────────────────────────
+
+CLAUDE_PROMPT = <<~PROMPT
+  You are helping a new user verify their service connections.
+
+  Explore the directories below for .sh files containing exported credentials:
+    - #{SECRETS_DIR}
+    - #{DEPLOY_DIR}
+
+  Skip the Anthropic key (already verified).
+
+  For each remaining credential you find:
+    1. Explain what the service is and what the credential does, in plain language.
+    2. Attempt a non-destructive connectivity check (e.g. an API call, HTTP
+       request, TCP connect, or DNS lookup) to confirm it works.
+    3. Report the result clearly as OK or FAIL with next steps if it failed.
+    4. Wait for the user to acknowledge before moving to the next one.
+
+  Be friendly and patient — assume the user is new to this.
+  Start by listing all the credential files you found (excluding Anthropic).
+PROMPT
+
+def hand_off_to_claude(api_key)
+  info "Launching Claude to walk you through the remaining connections..."
+  info "(You can ask questions at any time.)\n\n"
+
+  env = { "ANTHROPIC_API_KEY" => api_key }
+  exec(env, "claude", CLAUDE_PROMPT)
+end
+
+# ── main ───────────────────────────────────────────────────────
+
+banner "verify_connections"
+puts "  This script checks your service credentials step by step."
+
+# Step 1
+step 1, "Discover Anthropic API Key"
+api_key = discover_anthropic_key
+unless api_key
+  puts "\n  Cannot continue without an Anthropic API key.\n\n"
+  exit 1
+end
+
+wait_or_quit
+
+# Step 2
+step 2, "Verify Anthropic API Key"
+api_result = verify_anthropic_key(api_key)
+if api_result == false
+  puts "\n  Cannot continue — fix the API key issue above and retry.\n\n"
+  exit 1
+end
+
+wait_or_quit
+
+# Step 3
+step 3, "Check Claude CLI"
+unless verify_claude_cli
+  puts "\n  Cannot continue without the Claude CLI.\n\n"
+  exit 1
+end
+
+wait_or_quit "Press ENTER to launch Claude for remaining checks (or q to quit)..."
+
+# Step 4
+step 4, "Verify remaining connections with Claude"
+hand_off_to_claude(api_key)

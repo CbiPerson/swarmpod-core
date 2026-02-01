@@ -1,0 +1,1 @@
+export HOSTINGER_ACCOUNT=your-hostinger-username
