@@ -135,3 +135,15 @@ This will:
 - **HTTP 400 "credit balance"** — Your Anthropic key is valid but needs credits loaded
 - **Network errors** — Check your internet connection and try again
 - **Claude CLI not found** — Run `npm install -g @anthropic-ai/claude-code`
+
+---
+
+## 8. What's Next
+
+Now that your environment is verified, explore SwarmPod's capabilities:
+
+- **See a live demo** — Switch to the **creators** tab and type `show me a demo`. The [demo-gem](https://github.com/CbiPerson/demo-gem) agent walks through multi-agent workflows interactively.
+- **Learn to build an agent** — Type `teach me to build an agent` in the **creators** tab. The [tutorial-gem](https://github.com/CbiPerson/tutorial-gem) agent provides step-by-step guidance.
+- **Read the architecture** — Type `explain the architecture` to have the [reference-gem](https://github.com/CbiPerson/reference-gem) agent break down how SwarmPod works under the hood.
+- **Focus on one agent** — Use the **Focus** button in the agent picker to load a single agent and work with it in isolation.
+- **Follow the guided flow** — The **newbie** tab includes a flow agent that walks you through the recommended progression: onboarding → demo → tutorial → reference.
