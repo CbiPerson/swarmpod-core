@@ -1,0 +1,45 @@
+name: onboarding
+display_name: "Onboarding"
+description: "New developer setup — credentials, tools, and access verification"
+version: 1
+milestones:
+  - id: anthropic-api
+    title: "Anthropic API"
+    description: "Create an Anthropic account, generate an API key, and add billing credits"
+    verify_hint: "Check ANTHROPIC_API_KEY env var and call /v1/models"
+    order: 1
+  - id: claude-cli
+    title: "Claude CLI"
+    description: "Install Claude Code CLI and verify it runs"
+    verify_hint: "Run claude --version and confirm output"
+    order: 2
+  - id: github-access
+    title: "GitHub Access"
+    description: "Create a personal access token with repo and read:org scopes, install gh CLI"
+    verify_hint: "Check GITHUB_ACCESS_TOKEN env var and run gh auth status"
+    order: 3
+  - id: swarmpod-repo
+    title: "SwarmPod Repo"
+    description: "Confirm access to the swarmpod-gem repository on GitHub"
+    verify_hint: "Use gh api to check repo accessibility"
+    order: 4
+  - id: hostinger-vps
+    title: "Hostinger VPS"
+    description: "Save VPS credentials and verify SSH connectivity"
+    verify_hint: "Check HOSTINGER_VPS env var and test TCP connection on port 22"
+    order: 5
+  - id: zai-account
+    title: "Z.AI Account"
+    description: "Save Z.AI credentials and verify the service is reachable"
+    verify_hint: "Check Z_AI_ACCOUNT env var and HTTP GET the Z.AI endpoint"
+    order: 6
+  - id: full-verification
+    title: "Full Verification"
+    description: "Run bin/verify_connections to confirm all services pass"
+    verify_hint: "Execute bin/verify_connections and check all services report OK"
+    order: 7
+  - id: explore-next
+    title: "Explore Next Steps"
+    description: "Review available agents and pick a next learning path"
+    verify_hint: "User has visited at least one other agent tab"
+    order: 8
