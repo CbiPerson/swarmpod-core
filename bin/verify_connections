@@ -55,27 +55,36 @@ def wait_or_quit(prompt = "Press ENTER to continue (or q to quit)...")
   end
 end
 
+# ── helpers ───────────────────────────────────────────────────
+
+# Check ENV first, then fall back to parsing a secrets .sh file.
+def discover_secret(env_var, file_path)
+  value = ENV[env_var]
+  if value && !value.empty?
+    return value
+  end
+
+  if File.exist?(file_path)
+    match = File.read(file_path).match(/export\s+#{Regexp.escape(env_var)}=(.+)/)
+    return match[1].strip if match
+  end
+
+  nil
+end
+
 # ── 1. discover anthropic key ─────────────────────────────────
 
 def discover_anthropic_key
   key_file = File.join(SECRETS_DIR, "anthropic", "ANTHROPIC_API_KEY.sh")
+  key = discover_secret("ANTHROPIC_API_KEY", key_file)
 
-  unless File.exist?(key_file)
-    fail! "Cannot find #{key_file}"
+  unless key
+    fail! "Cannot find ANTHROPIC_API_KEY in env or #{key_file}"
     info  "Create the file with:  export ANTHROPIC_API_KEY=sk-ant-..."
     return nil
   end
 
-  contents = File.read(key_file)
-  match = contents.match(/export\s+ANTHROPIC_API_KEY=(.+)/)
-
-  unless match
-    fail! "No 'export ANTHROPIC_API_KEY=...' line found in #{key_file}"
-    return nil
-  end
-
-  key = match[1].strip
-  ok "Found ANTHROPIC_API_KEY in secrets/anthropic/ANTHROPIC_API_KEY.sh"
+  ok "Found ANTHROPIC_API_KEY"
   info "Key starts with: #{key[0..15]}..."
   key
 end

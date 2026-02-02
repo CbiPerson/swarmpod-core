@@ -12,6 +12,16 @@ def ok(msg)   = puts("  [OK]   #{msg}")
 def fail!(msg) = puts("  [FAIL] #{msg}")
 def info(msg)  = puts("         #{msg}")
 
+def discover_secret(env_var, file_path)
+  value = ENV[env_var]
+  return value if value && !value.empty?
+  if File.exist?(file_path)
+    match = File.read(file_path).match(/export\s+#{Regexp.escape(env_var)}=(.+)/)
+    return match[1].strip if match
+  end
+  nil
+end
+
 # ── Read credentials ──────────────────────────────────────────
 
 deploy_dir    = File.join(SECRETS_DIR, "deployment", "Hostinger")
@@ -19,24 +29,9 @@ account_file  = File.join(deploy_dir, "HOSTINGER_ACCOUNT.sh")
 password_file = File.join(deploy_dir, "HOSTINGER_PASSWORD.sh")
 server_file   = File.join(deploy_dir, "HOSTINGER_SERVER.sh")
 
-account  = nil
-password = nil
-server   = nil
-
-if File.exist?(account_file)
-  match = File.read(account_file).match(/export\s+HOSTINGER_ACCOUNT=(.+)/)
-  account = match[1].strip if match
-end
-
-if File.exist?(password_file)
-  match = File.read(password_file).match(/export\s+HOSTINGER_PASSWORD=(.+)/)
-  password = match[1].strip if match
-end
-
-if File.exist?(server_file)
-  match = File.read(server_file).match(/export\s+HOSTINGER_SERVER=(.+)/)
-  server = match[1].strip if match
-end
+account  = discover_secret("HOSTINGER_ACCOUNT", account_file)
+password = discover_secret("HOSTINGER_PASSWORD", password_file)
+server   = discover_secret("HOSTINGER_VPS", server_file)
 
 unless account
   fail! "Cannot find HOSTINGER_ACCOUNT"
@@ -51,10 +46,10 @@ end
 ok "Found HOSTINGER_PASSWORD"
 
 unless server
-  fail! "Cannot find HOSTINGER_SERVER"
+  fail! "Cannot find HOSTINGER_VPS"
   exit 1
 end
-ok "Found HOSTINGER_SERVER: #{server}"
+ok "Found HOSTINGER_VPS: #{server}"
 
 # ── DNS resolution ────────────────────────────────────────────
 

@@ -15,23 +15,26 @@ def ok(msg)   = puts("  [OK]   #{msg}")
 def fail!(msg) = puts("  [FAIL] #{msg}")
 def info(msg)  = puts("         #{msg}")
 
+def discover_secret(env_var, file_path)
+  value = ENV[env_var]
+  return value if value && !value.empty?
+  if File.exist?(file_path)
+    match = File.read(file_path).match(/export\s+#{Regexp.escape(env_var)}=(.+)/)
+    return match[1].strip if match
+  end
+  nil
+end
+
 begin
 
 key_file = File.join(SECRETS_DIR, "anthropic", "ANTHROPIC_API_KEY.sh")
+api_key = discover_secret("ANTHROPIC_API_KEY", key_file)
 
-unless File.exist?(key_file)
-  fail! "Cannot find #{key_file}"
+unless api_key
+  fail! "Cannot find ANTHROPIC_API_KEY in env or #{key_file}"
   exit 1
 end
 
-contents = File.read(key_file)
-match = contents.match(/export\s+ANTHROPIC_API_KEY=(.+)/)
-unless match
-  fail! "No 'export ANTHROPIC_API_KEY=...' line found"
-  exit 1
-end
-
-api_key = match[1].strip
 ok "Found ANTHROPIC_API_KEY"
 info "Key starts with: #{api_key[0..15]}..."
 

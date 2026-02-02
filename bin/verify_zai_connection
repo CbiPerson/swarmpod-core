@@ -16,32 +16,32 @@ def info(msg)  = puts("         #{msg}")
 
 # ── Read credentials ──────────────────────────────────────────
 
+def discover_secret(env_var, file_path)
+  value = ENV[env_var]
+  return value if value && !value.empty?
+  if File.exist?(file_path)
+    match = File.read(file_path).match(/export\s+#{Regexp.escape(env_var)}=(.+)/)
+    return match[1].strip if match
+  end
+  nil
+end
+
 begin
 
 account_file  = File.join(SECRETS_DIR, "z.ai", "Z_AI_ACCOUNT.sh")
 password_file = File.join(SECRETS_DIR, "z.ai", "Z_AI_PASSWORD.sh")
 
-account  = nil
-password = nil
-
-if File.exist?(account_file)
-  match = File.read(account_file).match(/export\s+Z_AI_ACCOUNT=(.+)/)
-  account = match[1].strip if match
-end
-
-if File.exist?(password_file)
-  match = File.read(password_file).match(/export\s+Z_AI_PASSWORD=(.+)/)
-  password = match[1].strip if match
-end
+account  = discover_secret("Z_AI_ACCOUNT", account_file)
+password = discover_secret("Z_AI_PASSWORD", password_file)
 
 unless account
-  fail! "Cannot find Z_AI_ACCOUNT in #{account_file}"
+  fail! "Cannot find Z_AI_ACCOUNT in env or #{account_file}"
   exit 1
 end
 ok "Found Z_AI_ACCOUNT: #{account}"
 
 unless password
-  fail! "Cannot find Z_AI_PASSWORD in #{password_file}"
+  fail! "Cannot find Z_AI_PASSWORD in env or #{password_file}"
   exit 1
 end
 ok "Found Z_AI_PASSWORD"

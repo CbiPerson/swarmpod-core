@@ -15,6 +15,16 @@ def ok(msg)   = puts("  [OK]   #{msg}")
 def fail!(msg) = puts("  [FAIL] #{msg}")
 def info(msg)  = puts("         #{msg}")
 
+def discover_secret(env_var, file_path)
+  value = ENV[env_var]
+  return value if value && !value.empty?
+  if File.exist?(file_path)
+    match = File.read(file_path).match(/export\s+#{Regexp.escape(env_var)}=(.+)/)
+    return match[1].strip if match
+  end
+  nil
+end
+
 # ── Read credentials ──────────────────────────────────────────
 
 begin
@@ -22,27 +32,17 @@ begin
 repo_file  = File.join(SECRETS_DIR, "ip", "swarmpod-gem", "SWARMPOD_GEM_GITHUB_REPO.sh")
 token_file = File.join(SECRETS_DIR, "github", "GITHUB_ACCESS_TOKEN.sh")
 
-repo_url = nil
-token    = nil
-
-if File.exist?(repo_file)
-  match = File.read(repo_file).match(/export\s+SWARMPOD_GEM_GITHUB_REPO=(.+)/)
-  repo_url = match[1].strip if match
-end
-
-if File.exist?(token_file)
-  match = File.read(token_file).match(/export\s+GITHUB_ACCESS_TOKEN=(.+)/)
-  token = match[1].strip if match
-end
+repo_url = discover_secret("SWARMPOD_GEM_GITHUB_REPO", repo_file)
+token    = discover_secret("GITHUB_ACCESS_TOKEN", token_file)
 
 unless repo_url
-  fail! "Cannot find SWARMPOD_GEM_GITHUB_REPO in #{repo_file}"
+  fail! "Cannot find SWARMPOD_GEM_GITHUB_REPO in env or #{repo_file}"
   exit 1
 end
 ok "Found SWARMPOD_GEM_GITHUB_REPO: #{repo_url}"
 
 unless token
-  fail! "Cannot find GITHUB_ACCESS_TOKEN (needed for API access)"
+  fail! "Cannot find GITHUB_ACCESS_TOKEN in env or #{token_file}"
   exit 1
 end
 ok "Found GITHUB_ACCESS_TOKEN"
