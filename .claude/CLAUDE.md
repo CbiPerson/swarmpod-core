@@ -240,3 +240,15 @@ times in production without duplicating data.
 - **Constants, not helpers.** Reading the VERSION file and running
   `git rev-parse` on every request would be wasteful. Class constants
   are evaluated once at boot and frozen for the process lifetime.
+
+### Smoke Tests for i18n Pages (2026-02-03)
+
+- **Check for translated content, not English.** When smoke-testing
+  locale pages (`/es`, `/fr/hackathons`), assert the translated string
+  (e.g., "Nunca Hackees", "Hub Hackathon"), not the English original.
+  The whole point of the test is to verify the locale is active — checking
+  for English text will always pass and proves nothing.
+- **Each locale test should assert locale-specific text.** A good
+  pattern: Spanish test checks for a Spanish string, French for French,
+  Portuguese for Portuguese. This catches missing translations, broken
+  locale routing, and fallback-to-English regressions in one assertion.
