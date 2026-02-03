@@ -29,7 +29,7 @@ Once you've completed the three core lessons, everything else is pick-and-choose
 
 The barrier to agentic programming isn't intelligence — it's infrastructure. Developers who understand secrets management, containerization, and multi-repo workflows are the ones who can actually put AI agents to work. SwarmPod removes that barrier in an afternoon.
 
-The framework is open source and available now at github.com/CbiPerson.
+The framework is open source and available now at https://github.com/CbiPerson/swarmpod-core.
 
 ---
 
