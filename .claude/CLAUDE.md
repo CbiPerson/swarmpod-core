@@ -218,3 +218,25 @@ times in production without duplicating data.
 - **`lang` attribute on `<html>` tag.** Add `lang="<%= I18n.locale %>"`
   for accessibility and SEO. Screen readers and search engines use this
   to identify page language.
+
+### Version and SHA Display (2026-02-03)
+
+- **Use a `VERSION` file at the repo root.** A single plain-text file
+  (`0.6.0`) is the source of truth. Read it once at boot with
+  `APP_VERSION = Rails.root.join("VERSION").read.strip` as a class
+  constant in ApplicationController. No gem, no config — just a file.
+- **Always increment VERSION before deployment.** This makes every
+  deploy visually verifiable. If the version on the page matches what
+  you just shipped, the deploy worked.
+- **Git SHA with env var fallback.** Use
+  `GIT_SHA = ENV.fetch("GIT_SHA") { \`git rev-parse --short HEAD\`.strip }`.
+  Locally it reads from git. In Docker/Kamal, set `GIT_SHA` as a build
+  arg (`ARG GIT_SHA` / `ENV GIT_SHA=$GIT_SHA`) since `.git` isn't in
+  the image.
+- **Display as a fixed badge.** A tiny `fixed top-1 right-2 z-[60]`
+  monospace element showing `v0.6.0@abc1234` is unobtrusive but always
+  visible. Use `text-[10px] text-gray-500` so it doesn't compete with
+  content. The `z-[60]` puts it above the nav bar (`z-50`).
+- **Constants, not helpers.** Reading the VERSION file and running
+  `git rev-parse` on every request would be wasteful. Class constants
+  are evaluated once at boot and frozen for the process lifetime.
