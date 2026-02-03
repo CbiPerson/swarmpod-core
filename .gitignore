@@ -1,2 +1,5 @@
 secrets/
 .DS_Store
+*.gem
+pkg/
+Gemfile.lock
