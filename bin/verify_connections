@@ -73,7 +73,7 @@ end
 # ── 1. discover anthropic key ─────────────────────────────────
 
 def discover_anthropic_key
-  key_file = File.join(SECRETS_DIR, "anthropic", "ANTHROPIC_API_KEY.sh")
+  key_file = File.join(SECRETS_DIR, "ANTHROPIC_API_KEY.sh")
   key = discover_secret("ANTHROPIC_API_KEY", key_file)
 
   unless key
