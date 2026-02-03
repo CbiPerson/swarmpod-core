@@ -82,3 +82,4 @@ Claude desktop with connected services:
 
 - [ONBOARDING.md](ONBOARDING.md) — Detailed step-by-step setup checklist
 - [swarmpod-gem](https://github.com/CbiPerson/swarmpod-gem) — The orchestration engine itself
+# swarmpod-core
