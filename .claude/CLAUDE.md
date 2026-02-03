@@ -122,3 +122,62 @@ secrets and Hostinger infrastructure.
 - **Secrets stay in `~/.swarmpod/secrets/`.** Never hardcode credentials
   in docker-compose.yml, deploy.yml, or env files checked into git. Always
   reference via command substitution or env vars.
+
+---
+
+### Rails 8 Authentication Generator (2026-02-03)
+
+- **`bin/rails generate authentication`** creates: User model with
+  `has_secure_password`, Session model (DB-backed, not cookie-only),
+  Current model (`ActiveSupport::CurrentAttributes`), SessionsController
+  with rate limiting, PasswordsController with token reset, Authentication
+  concern, PasswordsMailer, two migrations. Auto-inserts `include Authentication`
+  into ApplicationController and adds routes.
+- **Registration is NOT included.** You must build RegistrationsController,
+  form view, and `resource :registration` route yourself. Call
+  `start_new_session_for @user` after save to auto-login on signup.
+- **`allow_unauthenticated_access`** — required on any controller that
+  should work without login (PagesController, HackathonsController, etc.).
+  Without it, every request redirects to sign-in.
+- **`Current.user`** — delegates through `Current.session.user`. Available
+  in controllers and views. Returns nil when not authenticated.
+- **`authenticated?`** — helper method for conditional nav rendering
+  (show name + Log Out vs Sign Up).
+- **Sessions are DB records.** Password reset destroys all sessions
+  server-side, which is more secure than cookie-only approaches.
+
+### CurriculumModule Naming (2026-02-03)
+
+- Ruby has a built-in `Module` constant. Naming a model `Module` shadows
+  it and breaks autoloading. Use `CurriculumModule` with
+  `self.table_name = "modules"` to keep the table name clean.
+
+### Turbo Frames for Filtering (2026-02-03)
+
+- No-reload filtering without JavaScript: wrap form with
+  `data: { turbo_frame: "results" }`, wrap results with
+  `turbo_frame_tag "results"`. Turbo extracts and swaps just the
+  matching frame from the response. No Stimulus, no fetch, no JSON API.
+
+### Kamal Operational Commands (2026-02-03)
+
+- **`kamal deploy`** — full cycle in ~100s: build, push to GHCR, pull on
+  server, start container, health check, cut over, stop old, prune.
+- **`kamal app exec 'bin/rails db:seed'`** — runs seeds in a disposable
+  container. Safe to re-run thanks to `find_or_create_by!` idempotency.
+- **`kamal app exec 'bin/rails runner "..."'`** — ad-hoc queries without
+  interactive console. Use this from CI or non-TTY environments.
+- **`kamal app exec 'bin/rails console'`** requires a TTY. Won't work
+  from scripts or remote agents. Run directly in your terminal.
+- **Kamal builds from committed state only.** Uncommitted files show as
+  warnings but are excluded from the image. Always commit before deploy.
+
+### Seed Idempotency Pattern (2026-02-03)
+
+```ruby
+Hackathon.find_or_create_by!(name: attrs[:name]) do |h|
+  h.start_date = attrs[:start_date]
+end
+```
+Block only executes on create, not find. Safe to run `db:seed` multiple
+times in production without duplicating data.
