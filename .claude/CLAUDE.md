@@ -181,3 +181,40 @@ end
 ```
 Block only executes on create, not find. Safe to run `db:seed` multiple
 times in production without duplicating data.
+
+### Rails i18n Multi-Language Support (2026-02-03)
+
+- **`scope "(:locale)"` makes locale optional.** Wrap routes in
+  `scope "(:locale)", locale: /en|es|fr|pt/` for URL-prefix routing.
+  English gets no prefix; other locales get `/es/`, `/fr/`, `/pt/`.
+  The regex constraint prevents arbitrary strings from matching as locales.
+- **Positional args in route helpers break with locale scope.** Once
+  `(:locale)` is in the route, `lesson_path(lesson)` passes the lesson
+  object as `locale:`, not `id:`. Fix: use keyword args everywhere —
+  `lesson_path(id: lesson)`.
+- **`default_url_options` keeps English URLs clean.** Return
+  `{ locale: I18n.locale == :en ? nil : I18n.locale }` so English links
+  have no prefix and non-English links include the locale segment.
+- **`_html` suffix convention.** Keys ending in `_html` are auto-marked
+  `html_safe` by Rails. Use for keys containing HTML tags/entities.
+  Never use `raw` or `.html_safe` on translated strings without this.
+- **`config.i18n.fallbacks = true`** means missing keys in es/fr/pt
+  fall back to English. No "translation missing" errors in production.
+  This lets you ship partial translations safely.
+- **Language switcher preserves current page.** Use
+  `url_for(request.query_parameters.merge(locale: loc))` to switch
+  language without navigating away. Pass `locale: nil` for English to
+  strip the prefix.
+- **Never fabricate stats.** Display real database counts
+  (`User.count`, `Hackathon.count`) instead of hardcoded aspirational
+  numbers like "10,000+" or "$1M+". Hallucinated stats erode trust.
+- **YAML locale files must stay in sync.** All locale files need the
+  same key structure. When adding/removing keys in `en.yml`, update
+  all other locale files simultaneously. A mismatch won't crash (with
+  fallbacks enabled) but will show English text on non-English pages.
+- **`set_locale` before_action in ApplicationController.** Read
+  `params[:locale]`, fall back to `:en`. Set `I18n.locale` on every
+  request. Keep it in ApplicationController so all controllers inherit it.
+- **`lang` attribute on `<html>` tag.** Add `lang="<%= I18n.locale %>"`
+  for accessibility and SEO. Screen readers and search engines use this
+  to identify page language.
