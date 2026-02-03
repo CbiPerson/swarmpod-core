@@ -1,12 +1,18 @@
-# SwarmPod Onboarding Plugin
+# SwarmPod Core
 
-Onboarding companion for [swarmpod-gem](https://github.com/CbiPerson/swarmpod-gem) — the multi-agent orchestration engine for Rails.
+Ruby gem providing onboarding verify scripts and a Rails application template for new SwarmPod team members.
 
-This plugin provides verify scripts and visual guides to help new team members connect all required services and confirm everything works before diving into development.
+![SwarmPod Demo](doc/DemoHomePage.png)
+
+## What's Included
+
+- **Verify scripts** — check that Anthropic, GitHub, Hostinger, and Z.AI service connections are working
+- **Rails template** — `rails new myapp --template rails_swarmpod.rb` generates a styled demo app in one command
+- **Secret management** — `discover_secret(env_var, file_path)` loads credentials from ENV or local `.sh` files, keeping them out of version control
 
 ## Prerequisites
 
-- **Ruby 2.7+** (the verify scripts are Ruby)
+- **Ruby 2.7+**
 - **Claude CLI** — `npm install -g @anthropic-ai/claude-code`
 - **Anthropic API key** with credits loaded
 - **GitHub account** with a personal access token
@@ -17,69 +23,57 @@ Optional services:
 
 ## Quick Start
 
-1. **Clone this repo**
+1. **Install the gem**
 
    ```bash
-   git clone https://github.com/CbiPerson/swarmpod-onboarding-plugin.git
-   cd swarmpod-onboarding-plugin
+   gem install swarmpod-core
    ```
 
-2. **Copy the secret templates and fill in your values**
+2. **Set up secrets**
+
+   Create `~/.swarmpod/secrets/` and add shell files with your credentials:
 
    ```bash
-   cp -r secrets_example/ secrets/
+   mkdir -p ~/.swarmpod/secrets
    ```
 
-   Edit each file in `secrets/` to replace placeholders with your actual credentials. The directory structure tells you which service each credential belongs to:
+   ```sh
+   # ~/.swarmpod/secrets/anthropic.sh
+   export ANTHROPIC_API_KEY="sk-ant-..."
+   ```
 
-   ```
-   secrets/
-   ├── anthropic/ANTHROPIC_API_KEY.sh
-   ├── github/GITHUB_ACCOUNT.sh
-   ├── github/GITHUB_ACCESS_TOKEN.sh
-   ├── deployment/Hostinger/HOSTINGER_ACCOUNT.sh
-   ├── deployment/Hostinger/HOSTINGER_PASSWORD.sh
-   ├── deployment/Hostinger/HOSTINGER_SERVER.sh
-   ├── ip/swarmpod-gem/SWARMPOD_GEM_GITHUB_REPO.sh
-   ├── z.ai/Z_AI_ACCOUNT.sh
-   └── z.ai/Z_AI_PASSWORD.sh
-   ```
+   See `secrets_example/` for the full list of templates.
 
 3. **Run the connection verifier**
 
    ```bash
-   bin/verify_connections
+   verify_connections
    ```
 
-   This walks you through each service step by step, then hands off to Claude to interactively verify the remaining connections.
-
-4. **Or run individual verifiers**
+   Or run individual verifiers:
 
    ```bash
-   bin/verify_anthropic_connection
-   bin/verify_claude_connection
-   bin/verify_github_connection
-   bin/verify_hostinger_connection
-   bin/verify_swarmpod_connection
-   bin/verify_zai_connection
+   verify_anthropic_connection
+   verify_claude_connection
+   verify_github_connection
+   verify_hostinger_connection
+   verify_swarmpod_connection
+   verify_zai_connection
    ```
 
-## What a Successful Setup Looks Like
+## Rails Template
 
-After running `verify_connections`, you should see output like this:
+Generate a complete SwarmPod demo app:
 
-![verify_connections output](screenshots/verify_conections_from_claude.png)
+```bash
+rails new myapp --template path/to/templates/rails_swarmpod.rb
+cd myapp
+bin/rails server
+```
 
-Your Anthropic dashboard should show active billing:
-
-![Anthropic billing](screenshots/AnthropicBilling.png)
-
-Claude desktop with connected services:
-
-![Claude connections](screenshots/claude_connections.png)
+This creates a styled home page with lesson cards linking to the SwarmPod curriculum and a `/next` page explaining the architecture.
 
 ## See Also
 
-- [ONBOARDING.md](ONBOARDING.md) — Detailed step-by-step setup checklist
-- [swarmpod-gem](https://github.com/CbiPerson/swarmpod-gem) — The orchestration engine itself
-# swarmpod-core
+- [swarmpod-core on GitHub](https://github.com/CbiPerson/swarmpod-core)
+- [CbiPerson](https://github.com/CbiPerson) — all SwarmPod repositories
