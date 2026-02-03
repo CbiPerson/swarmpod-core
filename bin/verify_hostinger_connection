@@ -23,7 +23,7 @@ end
 
 # ── Read credentials ──────────────────────────────────────────
 
-deploy_dir    = File.join(SECRETS_DIR, "deployment", "Hostinger")
+deploy_dir    = File.join(SECRETS_DIR, "Hostinger")
 account_file  = File.join(deploy_dir, "HOSTINGER_ACCOUNT.sh")
 password_file = File.join(deploy_dir, "HOSTINGER_PASSWORD.sh")
 server_file   = File.join(deploy_dir, "HOSTINGER_SERVER.sh")
