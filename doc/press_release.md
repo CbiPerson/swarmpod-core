@@ -33,12 +33,12 @@ SwarmPod Core is distributed as a Ruby gem and includes:
 
 ## Availability
 
-SwarmPod is open source and available now on GitHub at github.com/CbiPerson. The framework is free to use, modify, and distribute.
+SwarmPod is open source and available now on GitHub at https://github.com/CbiPerson/swarmpod-core. The framework is free to use, modify, and distribute.
 
 ## About SwarmPod
 
 SwarmPod is an open-source project focused on reducing the time it takes for developers to adopt agentic programming practices. By packaging essential infrastructure skills into a one-hour onboarding path, SwarmPod enables teams to put AI agents to work across multi-repository codebases without weeks of ramp-up time.
 
-**Contact:** github.com/CbiPerson
+**Contact:** https://github.com/CbiPerson/swarmpod-core
 
 ###
