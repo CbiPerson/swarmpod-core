@@ -18,10 +18,18 @@ then fall back to parsing `.sh` files. Expected variables:
 - `HOSTINGER_ACCOUNT`, `HOSTINGER_PASSWORD`, `HOSTINGER_VPS`
 - `Z_AI_ACCOUNT`, `Z_AI_PASSWORD`
 
-# Secrets
+# On Laptop 
 
-SwarmPod loads secrets from your local filesystem and passes them into the
-Docker container as environment variables.
+SwarmPod Core discover_secret(env_var, file_path) loads secrets from your local filesystem
+
+
+# In Container
+
+SwarmPod Core discover_secret(env_var, file_path) loads secrets from enviroment variables
+
+# In Docker Compose
+
+SwarmPod Core discover_secret(env_var, file_path) loads secrets from your local filesystem and converts them to enviroment variables accessible in container
 
 ## How it works
 
