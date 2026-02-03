@@ -9,8 +9,7 @@ require "json"
 require "open3"
 require "openssl"
 
-PROJECT_ROOT = File.expand_path("..", __dir__)
-SECRETS_DIR  = File.join(PROJECT_ROOT, "secrets")
+require_relative "paths"
 
 def ok(msg)   = puts("  [OK]   #{msg}")
 def fail!(msg) = puts("  [FAIL] #{msg}")

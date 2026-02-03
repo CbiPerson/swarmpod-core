@@ -1,0 +1,57 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Preflight check: gh CLI + GitHub authentication
+# Exit 0 = all checks pass, exit 1 = one or more failed
+
+require "open3"
+
+$results = []
+
+def check(label)
+  ok, detail = yield
+  $results << { label: label, ok: ok, detail: detail }
+  ok
+end
+
+def command_exists?(cmd)
+  _, status = Open3.capture2e("which", cmd)
+  status.success?
+end
+
+# --- Checks ---
+
+# 1. gh CLI installed
+check("gh CLI installed") do
+  if command_exists?("gh")
+    version, = Open3.capture2("gh", "--version")
+    [true, version.lines.first.strip]
+  else
+    [false, "'gh' not found on PATH. Install: https://cli.github.com/"]
+  end
+end
+
+# 2. gh auth status
+check("gh auth status") do
+  output, status = Open3.capture2e("gh", "auth", "status")
+  if status.success?
+    [true, output.lines.first&.strip || "authenticated"]
+  else
+    [false, output.strip]
+  end
+end
+
+# --- Print results ---
+
+passed = $results.count { |r| r[:ok] }
+total  = $results.length
+
+$results.each do |r|
+  tag = r[:ok] ? "\e[32m[OK]\e[0m  " : "\e[31m[FAIL]\e[0m"
+  puts "  #{tag} #{r[:label]}"
+  unless r[:ok]
+    r[:detail].each_line { |l| puts "         #{l}" }
+  end
+end
+
+exit(passed == total ? 0 : 1)
